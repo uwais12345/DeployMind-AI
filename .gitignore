@@ -1,33 +1,67 @@
-# Dependencies
+# Dependency Directories
 node_modules/
 venv/
 .venv/
 env/
 .env
+.env.local
+.env.*.local
 
-# Build outputs
+# Build & Dist
 dist/
+dist-ssr/
 build/
 *.zip
+*.tar.gz
+*.rar
+
+# Playwright E2E Testing
+frontend/playwright-report/
+frontend/test-results/
+frontend/tests/e2e/.auth/
+frontend/tests/e2e/.compiled/
+frontend/tests/e2e/fixtures/zips/
+*.webm
+*.mp4
+
+# Python Specific
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.tox/
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.projects/
 
 # Database
 *.db
 *.sqlite3
+supabase/.temp/
 
-# IDEs and Editors
+# IDEs, Editors & OS
 .vscode/
+!.vscode/extensions.json
 .idea/
 *.swp
 *.swo
 .DS_Store
+Thumbs.db
+desktop.ini
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Project specific
+# Project Specific Artifacts
+Prompt.md
 test_project/
 test_project.zip
-Prompt.md
+temp_*/
+deployments_temp/

@@ -20,6 +20,9 @@ import PreviewDeployments from './pages/PreviewDeployments';
 import ProjectSettings from './pages/ProjectSettings';
 import ProfileSettings from './pages/ProfileSettings';
 import DeploymentWizard from './pages/DeploymentWizard';
+import GitHubCallback from './pages/GitHubCallback';
+import GoogleCallback from './pages/GoogleCallback';
+import LandingPage from './pages/LandingPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuthStore();
@@ -59,7 +62,6 @@ export default function App() {
           <Route path="/wizard" element={<DeploymentWizard />} />
           <Route path="/deployments" element={<Deployments />} />
           <Route path="/deployments/:id" element={<DeploymentMonitor />} />
-          <Route path="/logs" element={<Navigate to="/deployments" replace />} />
           <Route path="/analysis/:id" element={<AIAnalysis />} />
           <Route path="/analysis" element={<Navigate to="/dashboard" replace />} />
           <Route path="/audit" element={<AuditLogs />} />
@@ -67,10 +69,12 @@ export default function App() {
           <Route path="/previews" element={<PreviewDeployments />} />
           <Route path="/settings" element={<ProjectSettings />} />
           <Route path="/profile" element={<ProfileSettings />} />
+          <Route path="/auth/callback" element={<GitHubCallback />} />
+          <Route path="/auth/google/callback" element={<GoogleCallback />} />
         </Route>
 
-        {/* Redirects */}
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        {/* Public Landing */}
+        <Route path="/" element={<LandingPage />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
 

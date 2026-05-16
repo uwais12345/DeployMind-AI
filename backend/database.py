@@ -14,9 +14,11 @@ if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
         connect_args={"check_same_thread": False},
     )
 else:
+    # PostgreSQL configuration with connection pooling
     engine = create_engine(
         SQLALCHEMY_DATABASE_URL,
         pool_pre_ping=True,
+        pool_recycle=300,
         pool_size=10,
         max_overflow=20,
     )

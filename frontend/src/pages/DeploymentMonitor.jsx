@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, XCircle, RefreshCw } from 'lucide-react';
+import { ArrowLeft, ExternalLink, XCircle, RefreshCw, Search, Copy, Download, Filter } from 'lucide-react';
 import { deploymentsAPI } from '../services/api';
 import DeploymentSteps from '../components/ui/DeploymentSteps';
 import StatusBadge from '../components/ui/StatusBadge';
 import useUIStore from '../store/useUIStore';
 import useWebSocket from '../hooks/useWebSocket';
+import Terminal from '../components/ui/Terminal';
+import ProviderBadge from '../components/ui/ProviderBadge';
 
 const POLL_INTERVAL = 3000;
 const ACTIVE = ['queued', 'preparing', 'creating_repository', 'pushing_code', 'provisioning', 'scanning', 'analyzing', 'uploading', 'building', 'deploying', 'verifying'];
@@ -17,9 +19,10 @@ export default function DeploymentMonitor() {
   const { addToast } = useUIStore();
   const [deployment, setDeployment] = useState(null);
   const [loading, setLoading] = useState(true);
-  const logEndRef = useRef(null);
   const [diagnostics, setDiagnostics] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [logFilter, setLogFilter] = useState('all');
 
   const fetchDeployment = async () => {
     try {
@@ -29,7 +32,6 @@ export default function DeploymentMonitor() {
       if (res.data.status === 'failed' && !diagnostics) {
         fetchDiagnostics();
       }
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } catch {
       setLoading(false);
     }
@@ -68,7 +70,6 @@ export default function DeploymentMonitor() {
           }]
         };
       });
-      logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     } else if (data.event === 'deployment.status') {
       const { status } = data.payload;
       setDeployment(prev => prev ? ({ ...prev, status, ...data.payload }) : prev);
@@ -130,11 +131,29 @@ export default function DeploymentMonitor() {
   const isSuccess = deployment.status === 'completed';
   const logs = deployment.logs || [];
 
-  const levelColor = (level) =>
-    level === 'success' ? 'var(--success)' :
-    level === 'error'   ? 'var(--danger)'  :
-    level === 'warning' ? 'var(--warning)' :
-    'var(--text-muted)';
+  const filteredLogs = logs.filter(log => {
+    if (logFilter !== 'all' && log.level !== logFilter && !(logFilter === 'info' && log.level === 'success')) return false;
+    if (searchTerm && !log.message.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  const handleCopyLogs = () => {
+    const text = filteredLogs.map(l => `[${new Date(l.created_at).toISOString()}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
+    navigator.clipboard.writeText(text);
+    addToast('Logs copied to clipboard', 'success');
+  };
+
+  const handleExportLogs = () => {
+    const text = filteredLogs.map(l => `[${new Date(l.created_at).toISOString()}] [${l.level.toUpperCase()}] ${l.message}`).join('\n');
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `deployment-${id}-logs.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    addToast('Logs exported', 'success');
+  };
 
   return (
     <div>
@@ -180,8 +199,8 @@ export default function DeploymentMonitor() {
         <motion.div initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} className="card" style={{ alignSelf: 'start' }}>
           <div className="card-header">
             <span className="card-title">Pipeline</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{deployment.provider}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <ProviderBadge provider={deployment.provider} />
               <StatusBadge status={deployment.status} pulse={isActive} />
             </div>
           </div>
@@ -232,29 +251,51 @@ export default function DeploymentMonitor() {
         {/* Terminal Logs */}
         <motion.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }}>
           <div className="terminal-panel">
-            <div className="terminal-header">
-              <div className="terminal-dot" style={{ background: '#ff5f57' }} />
-              <div className="terminal-dot" style={{ background: '#febc2e' }} />
-              <div className="terminal-dot" style={{ background: '#28c840' }} />
-              <span style={{ marginLeft: 8, fontSize: 11, color: '#44445a' }}>
-                deploymind — deployment-{deployment.id}.log
-              </span>
-              {isActive && <span className="pulse-dot" style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />}
-            </div>
-            <div className="terminal-body">
-              {logs.length === 0 && (
-                <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>Waiting for deployment logs...</div>
-              )}
-              {logs.map((log) => (
-                <div key={log.id} className="log-line">
-                  <span className="log-time">
-                    {new Date(log.created_at).toLocaleTimeString()}
-                  </span>
-                  <span style={{ color: levelColor(log.level) }}>{log.message}</span>
+            <div className="terminal-header" style={{ flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 200 }}>
+                <div className="terminal-dot" style={{ background: '#ff5f57' }} />
+                <div className="terminal-dot" style={{ background: '#febc2e' }} />
+                <div className="terminal-dot" style={{ background: '#28c840' }} />
+                <span style={{ marginLeft: 8, fontSize: 11, color: '#44445a' }}>
+                  deploymind — deployment-{deployment.id}.log
+                </span>
+                {isActive && <span className="pulse-dot" style={{ marginLeft: 8, width: 6, height: 6, borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+                <div style={{ position: 'relative' }}>
+                  <Search size={12} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#8888b8' }} />
+                  <input 
+                    type="text" 
+                    placeholder="Search logs..." 
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                    style={{ background: '#11111a', border: '1px solid #1a1a28', borderRadius: 4, padding: '4px 8px 4px 24px', fontSize: 11, color: '#e8e8f0', width: 140, outline: 'none' }}
+                  />
                 </div>
-              ))}
-              <div ref={logEndRef} />
+                
+                <div style={{ display: 'flex', background: '#11111a', border: '1px solid #1a1a28', borderRadius: 4, overflow: 'hidden' }}>
+                  {['all', 'info', 'warning', 'error'].map(f => (
+                    <button 
+                      key={f}
+                      onClick={() => setLogFilter(f)}
+                      style={{ 
+                        background: logFilter === f ? '#1e1e2e' : 'transparent', 
+                        color: logFilter === f ? '#e8e8f0' : '#8888b8',
+                        border: 'none', padding: '4px 8px', fontSize: 10, cursor: 'pointer', textTransform: 'capitalize' 
+                      }}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ width: 1, height: 16, background: '#1a1a28', margin: '0 4px' }} />
+                <button onClick={handleCopyLogs} title="Copy Logs" style={{ background: 'transparent', border: 'none', color: '#8888b8', cursor: 'pointer', padding: 4, display: 'flex' }}><Copy size={13} /></button>
+                <button onClick={handleExportLogs} title="Export Logs" style={{ background: 'transparent', border: 'none', color: '#8888b8', cursor: 'pointer', padding: 4, display: 'flex' }}><Download size={13} /></button>
+              </div>
             </div>
+            <Terminal logs={filteredLogs} isActive={isActive} />
           </div>
         </motion.div>
       </div>

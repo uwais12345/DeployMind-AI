@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Rocket, Upload, FolderOpen, CheckCircle, AlertTriangle, TrendingUp, Clock } from 'lucide-react';
+import { Rocket, Upload, FolderOpen, CheckCircle, TrendingUp, Activity, Server, Zap } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import useProjectStore from '../store/useProjectStore';
-import { deploymentsAPI } from '../services/api';
+import { deploymentsAPI, analyticsAPI } from '../services/api';
 import StatusBadge from '../components/ui/StatusBadge';
 
 function StatsCard({ icon: Icon, label, value, color = 'var(--accent)' }) {
@@ -15,7 +16,7 @@ function StatsCard({ icon: Icon, label, value, color = 'var(--accent)' }) {
           <Icon size={15} style={{ color }} />
         </div>
       </div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1, marginTop: 12 }}>
         {value}
       </div>
     </div>
@@ -38,11 +39,19 @@ function EmptyProjects({ onUpload }) {
 export default function Dashboard() {
   const { projects, fetchProjects, loading } = useProjectStore();
   const [deployments, setDeployments] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
     deploymentsAPI.list().then(r => setDeployments(r.data || [])).catch(() => {});
+    
+    setAnalyticsLoading(true);
+    analyticsAPI.getStats(7)
+      .then(r => setAnalytics(r.data))
+      .catch(() => {})
+      .finally(() => setAnalyticsLoading(false));
   }, []);
 
   const successCount = deployments.filter(d => d.status === 'completed').length;
@@ -55,15 +64,15 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Overview of your projects and deployments</p>
+          <h1 className="page-title">DeployMind Platform</h1>
+          <p className="page-subtitle">Multi-Deployment Analytics & Observability</p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/upload')}>
-          <Upload size={14} /> Upload Project
+          <Upload size={14} /> New Project
         </button>
       </div>
 
-      {/* Stats */}
+      {/* Analytics Stats */}
       <motion.div
         className="grid-4"
         initial={{ opacity: 0, y: 12 }}
@@ -71,11 +80,179 @@ export default function Dashboard() {
         transition={{ duration: 0.3 }}
         style={{ marginBottom: 28 }}
       >
-        <StatsCard icon={FolderOpen} label="Total Projects" value={projects.length} color="var(--accent)" />
-        <StatsCard icon={Rocket}     label="Deployments"    value={deployments.length} color="var(--info)" />
-        <StatsCard icon={CheckCircle} label="Success Rate"  value={`${successRate}%`} color="var(--success)" />
-        <StatsCard icon={TrendingUp} label="Avg AI Score"   value={avgScore || '—'} color="var(--warning)" />
+        <StatsCard icon={FolderOpen} label="Total Projects" value={analytics?.total_projects || projects.length} color="var(--accent)" />
+        <StatsCard icon={Rocket}     label="Deployments (7d)" value={analytics?.total_deployments || deployments.length} color="var(--info)" />
+        <StatsCard icon={CheckCircle} label="Success Rate"  value={`${analytics?.success_rate || successRate}%`} color="var(--success)" />
+        <StatsCard icon={Zap}        label="Avg AI Score"   value={avgScore || '—'} color="var(--warning)" />
       </motion.div>
+
+      {/* Deployment Activity Chart */}
+      <motion.div
+        className="card"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.05 }}
+        style={{ marginBottom: 28 }}
+      >
+        <div className="card-header" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+          <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Activity size={16} /> Deployment Activity
+          </span>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Last 7 Days</div>
+        </div>
+        
+        <div style={{ height: 280, padding: '20px 20px 20px 0', width: '100%' }}>
+          {analyticsLoading ? (
+            <div className="skeleton" style={{ width: '100%', height: '100%', borderRadius: 8 }} />
+          ) : !analytics || !analytics.trends || analytics.trends.length === 0 ? (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 13 }}>
+              Not enough data to display chart
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={analytics.trends}>
+                <defs>
+                  <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorSuccess" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--success)" stopOpacity={0.2}/>
+                    <stop offset="95%" stopColor="var(--success)" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#222" />
+                <XAxis 
+                  dataKey="date" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: 'var(--text-muted)' }} 
+                  dy={10}
+                  tickFormatter={(str) => {
+                    const date = new Date(str);
+                    return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                  }}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fontSize: 11, fill: 'var(--text-muted)' }} 
+                  dx={-10}
+                />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', borderRadius: 6, boxShadow: 'var(--shadow-lg)' }}
+                  itemStyle={{ fontSize: 12, fontWeight: 500 }}
+                  labelStyle={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}
+                />
+                <Area type="monotone" dataKey="total" name="Total" stroke="var(--accent)" strokeWidth={2} fillOpacity={1} fill="url(#colorTotal)" />
+                <Area type="monotone" dataKey="success" name="Success" stroke="var(--success)" strokeWidth={2} fillOpacity={1} fill="url(#colorSuccess)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Grid for Analytics Charts */}
+      <div className="grid-3" style={{ marginBottom: 28 }}>
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.08 }}
+        >
+          <div className="card-header"><span className="card-title">Frameworks</span></div>
+          <div style={{ height: 200 }}>
+            {analyticsLoading ? <div className="skeleton" style={{ height: '100%' }} /> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={analytics?.frameworks || []}
+                    dataKey="projects"
+                    nameKey="name"
+                    cx="50%" cy="50%"
+                    innerRadius={50}
+                    outerRadius={70}
+                    paddingAngle={5}
+                  >
+                    {(analytics?.frameworks || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={index % 2 === 0 ? 'var(--accent)' : 'var(--text-muted)'} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', borderRadius: 6 }}
+                    itemStyle={{ fontSize: 12 }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <div className="card-header"><span className="card-title">Provider Adoption</span></div>
+          <div style={{ height: 200 }}>
+            {analyticsLoading ? <div className="skeleton" style={{ height: '100%' }} /> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics?.providers || []} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    width={70}
+                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                    tickFormatter={(val) => val.charAt(0).toUpperCase() + val.slice(1)}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'var(--bg-hover)' }}
+                    contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', borderRadius: 6 }}
+                    itemStyle={{ fontSize: 12 }}
+                  />
+                  <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="card"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.12 }}
+        >
+          <div className="card-header"><span className="card-title">Failures</span></div>
+          <div style={{ height: 200 }}>
+            {analyticsLoading ? <div className="skeleton" style={{ height: '100%' }} /> : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={analytics?.failures || []} layout="vertical">
+                  <XAxis type="number" hide />
+                  <YAxis 
+                    dataKey="reason" 
+                    type="category" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    width={80}
+                    tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'var(--bg-hover)' }}
+                    contentStyle={{ backgroundColor: 'var(--bg-secondary)', borderColor: 'var(--border)', borderRadius: 6 }}
+                    itemStyle={{ fontSize: 12 }}
+                  />
+                  <Bar dataKey="count" fill="var(--danger)" radius={[0, 4, 4, 0]} barSize={16} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </motion.div>
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
         {/* Recent Deployments */}

@@ -43,9 +43,9 @@ export default function ProfileSettings() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+            background: 'var(--accent)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 20, fontWeight: 700, color: 'white', flexShrink: 0,
+            fontSize: 20, fontWeight: 800, color: 'var(--bg-primary)', flexShrink: 0,
           }}>
             {user?.email?.[0]?.toUpperCase() || 'U'}
           </div>

@@ -284,6 +284,30 @@ def delete_project(
     return {"message": "Project deleted", "success": True}
 
 
+@router.put("/{project_id}")
+def update_project(
+    project_id: int,
+    data: dict,
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    project = db.query(models.Project).filter(
+        models.Project.id == project_id,
+        models.Project.owner_id == current_user.id,
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Update fields if provided
+    for key, value in data.items():
+        if hasattr(project, key):
+            setattr(project, key, value)
+    
+    db.commit()
+    db.refresh(project)
+    return {"message": "Project updated", "success": True}
+
+
 @router.post("/{project_id}/fix")
 def fix_project(
     project_id: int,

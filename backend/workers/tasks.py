@@ -68,6 +68,7 @@ def deploy_project_task(self, deployment_id: int, project_id: int, extracted_pat
         import models
         from integrations.providers.mock_provider import MockProvider
         from integrations.providers.vercel_provider import VercelProvider
+        from integrations.providers.render_provider import RenderProvider
         from services import github_service
 
         deployment = db.query(models.Deployment).filter(models.Deployment.id == deployment_id).first()
@@ -77,6 +78,8 @@ def deploy_project_task(self, deployment_id: int, project_id: int, extracted_pat
         # Initialize Provider
         if provider == "vercel":
             prov_instance = VercelProvider()
+        elif provider == "render":
+            prov_instance = RenderProvider()
         else:
             prov_instance = MockProvider()
 
@@ -157,7 +160,7 @@ def deploy_project_task(self, deployment_id: int, project_id: int, extracted_pat
             status_res = prov_instance.get_deployment_status(provider_deployment_id)
             
             curr_prov_status = status_res.get("status", "building")
-            msg = status_res.get("error") or f"Vercel status: {curr_prov_status.upper()}"
+            msg = status_res.get("error") or f"{provider.capitalize()} status: {curr_prov_status.upper()}"
             
             # Sync logs if available
             log_res = prov_instance.get_logs(provider_deployment_id)

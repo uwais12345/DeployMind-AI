@@ -20,14 +20,8 @@ app = FastAPI(
 # ────────────────────────────────────────────
 # CORS
 # ────────────────────────────────────────────
-ALLOWED_ORIGINS = [
-    os.getenv("FRONTEND_URL", "http://localhost:5173"),
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:4173",   # Vite preview
-]
+ALLOWED_ORIGINS = ["*"]
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -65,7 +59,7 @@ async def startup_event():
 # ────────────────────────────────────────────
 # ROUTERS
 # ────────────────────────────────────────────
-from routers import users, projects, deployments, audit, versions, previews, websocket, github
+from routers import users, projects, deployments, audit, versions, previews, websocket, github, analytics, google
 
 app.include_router(users.router,       prefix="/api/users",       tags=["Authentication"])
 app.include_router(projects.router,    prefix="/api/projects",    tags=["Projects"])
@@ -75,6 +69,8 @@ app.include_router(versions.router,    prefix="/api/versions",    tags=["Version
 app.include_router(previews.router,    prefix="/api/previews",    tags=["Preview Deployments"])
 app.include_router(websocket.router,   prefix="/ws",              tags=["WebSocket"])
 app.include_router(github.router,      prefix="/api/github",      tags=["GitHub"])
+app.include_router(analytics.router,   prefix="/api/analytics",   tags=["Analytics"])
+app.include_router(google.router,      prefix="/api/google",      tags=["Google OAuth"])
 
 # ────────────────────────────────────────────
 # HEALTH & ROOT

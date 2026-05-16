@@ -71,6 +71,12 @@ const useAuthStore = create((set, get) => ({
     localStorage.removeItem('refresh_token');
     set({ user: null, token: null, isAuthenticated: false });
   },
+
+  setAuth: (token, user, refresh_token = null) => {
+    localStorage.setItem('token', token);
+    if (refresh_token) localStorage.setItem('refresh_token', refresh_token);
+    set({ token, user, isAuthenticated: true });
+  },
 }));
 
 export default useAuthStore;

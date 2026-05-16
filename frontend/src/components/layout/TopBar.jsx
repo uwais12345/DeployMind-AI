@@ -8,7 +8,6 @@ const BREADCRUMB_MAP = {
   '/upload': ['Projects', 'Upload'],
   '/wizard': ['Projects', 'Deploy Wizard'],
   '/deployments': ['Deployments'],
-  '/logs': ['Deployments', 'Logs Explorer'],
   '/analysis': ['AI', 'Analysis'],
   '/audit': ['Management', 'Audit Logs'],
   '/versions': ['Management', 'Version History'],

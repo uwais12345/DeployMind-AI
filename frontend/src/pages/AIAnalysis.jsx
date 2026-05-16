@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, Rocket, GitBranch, Plus, Trash2, Shield, Settings, Terminal, Globe, Loader, RefreshCw, Clock } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Rocket, GitBranch, Plus, Trash2, Shield, Settings, Terminal, Globe, Loader, RefreshCw, Clock, Wrench } from 'lucide-react';
 import { projectsAPI, deploymentsAPI } from '../services/api';
 import ScoreGauge from '../components/ui/ScoreGauge';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -36,6 +36,10 @@ export default function AIAnalysis() {
   const [envVars, setEnvVars] = useState([]);
   const [newVar, setNewVar] = useState({ key: '', value: '', is_secret: false });
   const [deployments, setDeployments] = useState([]);
+  
+  // Fix My Project States
+  const [fixing, setFixing] = useState(false);
+  const [fixResult, setFixResult] = useState(null);
 
   const fetchProject = async () => {
     try {
@@ -147,6 +151,19 @@ export default function AIAnalysis() {
     }
   };
 
+  const handleFixProject = async () => {
+    setFixing(true);
+    try {
+      const res = await projectsAPI.fix(id);
+      setFixResult(res.data.fix_analysis);
+      addToast('AI generated fix recommendations', 'success');
+    } catch (err) {
+      addToast('Failed to generate fixes', 'error');
+    } finally {
+      setFixing(false);
+    }
+  };
+
   if (loading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {[1,2,3].map(i => <div key={i} className="skeleton" style={{ height: 120 }} />)}
@@ -252,6 +269,7 @@ export default function AIAnalysis() {
           { id: 'infrastructure', label: 'Build Settings', icon: <Settings size={13} /> },
           { id: 'history', label: 'History', icon: <Clock size={13} /> },
           { id: 'code-review', label: 'Code Review', icon: <GitBranch size={13} /> },
+          { id: 'fix', label: 'Fix My Project', icon: <Wrench size={13} /> },
         ].map(tab => (
           <button key={tab.id} className={`tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>{tab.icon} {tab.label}</span>
@@ -542,6 +560,57 @@ export default function AIAnalysis() {
                 ))}
               </tbody>
             </table>
+          )}
+        </motion.div>
+      )}
+
+      {activeTab === 'fix' && (
+        <motion.div key="fix" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="card">
+          <div className="card-header">
+            <span className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Wrench size={16} style={{ color: 'var(--accent)' }} /> 
+              AI Project Fix Assistant
+            </span>
+          </div>
+          
+          <div style={{ marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
+              The AI Fix Assistant scans your entire codebase to identify syntax errors, missing configurations, dependency mismatches, and deployment incompatibilities. It then provides exact, safe fixes.
+            </p>
+            <button className="btn btn-primary" onClick={handleFixProject} disabled={fixing}>
+              {fixing ? <><Loader size={14} className="spin" /> Scanning Codebase...</> : 'Scan and Fix Project'}
+            </button>
+          </div>
+
+          {fixResult && (
+            <div className="diagnostics-panel" style={{ marginTop: 20 }}>
+              <div className="panel-label">RECOMMENDED FIXES</div>
+              
+              <div style={{ display: 'grid', gap: 16 }}>
+                {(fixResult.fixes || []).map((fix, idx) => (
+                  <div key={idx} className="suggestion-box">
+                    <div className="suggestion-label" style={{ color: fix.type === 'error' ? 'var(--danger)' : fix.type === 'security' ? 'var(--warning)' : 'var(--accent-hover)' }}>
+                      {fix.file || 'General'}
+                    </div>
+                    <div className="reason-text" style={{ fontSize: 13, marginBottom: 8 }}>{fix.issue}</div>
+                    <div className="suggestion-text">
+                      <strong>Solution:</strong> {fix.solution}
+                    </div>
+                    {fix.code_snippet && (
+                      <pre style={{ marginTop: 10, padding: 10, background: '#09090b', borderRadius: 4, overflowX: 'auto', border: '1px solid var(--border)' }}>
+                        <code style={{ fontSize: 12, color: 'var(--success)' }}>{fix.code_snippet}</code>
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+              
+              {(fixResult.fixes || []).length === 0 && (
+                <div style={{ color: 'var(--success)', fontSize: 13 }}>
+                  ✓ No major issues found. Your project looks ready to deploy!
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
       )}

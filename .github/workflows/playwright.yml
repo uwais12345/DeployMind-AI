@@ -1,0 +1,305 @@
+name: DeployMind AI — Playwright E2E Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser to test'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+          - firefox
+          - webkit
+          - all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─── Install Dependencies ──────────────────────────────────────────────────
+  install:
+    name: Install Dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+          restore-keys: playwright-${{ runner.os }}-
+
+  # ─── Start Backend Services (mock) ────────────────────────────────────────
+  backend-health:
+    name: Verify Backend Health
+    runs-on: ubuntu-latest
+    needs: install
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: deploymind_test
+          POSTGRES_USER: deploymind
+          POSTGRES_PASSWORD: deploymind_test_123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Start FastAPI backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://deploymind:deploymind_test_123@localhost:5432/deploymind_test
+          SECRET_KEY: playwright_ci_secret_key_for_testing_only
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 60
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python init_db.py || true
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+          curl --fail http://localhost:8000/health || exit 1
+
+  # ─── E2E Tests: Chromium ─────────────────────────────────────────────────
+  test-chromium:
+    name: E2E Tests (Chromium)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Restore npm cache
+        working-directory: frontend
+        run: npm ci
+
+      - name: Restore Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - name: Install Playwright browsers if not cached
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Chromium E2E tests
+        working-directory: frontend
+        env:
+          CI: true
+          BASE_URL: http://localhost:5173
+          API_URL: http://localhost:8000
+          TEST_USER_EMAIL: playwright.ci@deploymind.ai
+          TEST_USER_PASSWORD: PlaywrightCI@2024!
+        run: |
+          npx playwright test --project=chromium --reporter=html,json,list
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-chromium
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 30
+
+      - name: Upload failure screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots-chromium
+          path: frontend/test-results/**/*.png
+          retention-days: 7
+
+      - name: Upload trace files on failure
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces-chromium
+          path: frontend/test-results/**/*.zip
+          retention-days: 7
+
+  # ─── E2E Tests: Firefox ─────────────────────────────────────────────────
+  test-firefox:
+    name: E2E Tests (Firefox)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Restore Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - run: npx playwright install firefox --with-deps
+        working-directory: frontend
+
+      - name: Run Firefox E2E tests
+        working-directory: frontend
+        env:
+          CI: true
+          BASE_URL: http://localhost:5173
+          TEST_USER_EMAIL: playwright.ci@deploymind.ai
+          TEST_USER_PASSWORD: PlaywrightCI@2024!
+        run: npx playwright test --project=firefox
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-firefox
+          path: frontend/playwright-report/
+          retention-days: 14
+
+  # ─── E2E Tests: WebKit ──────────────────────────────────────────────────
+  test-webkit:
+    name: E2E Tests (WebKit)
+    runs-on: ubuntu-latest
+    needs: install
+    timeout-minutes: 30
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+        working-directory: frontend
+
+      - name: Restore Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
+
+      - run: npx playwright install webkit --with-deps
+        working-directory: frontend
+
+      - name: Run WebKit E2E tests
+        working-directory: frontend
+        env:
+          CI: true
+          BASE_URL: http://localhost:5173
+          TEST_USER_EMAIL: playwright.ci@deploymind.ai
+          TEST_USER_PASSWORD: PlaywrightCI@2024!
+        run: npx playwright test --project=webkit
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-results-webkit
+          path: frontend/playwright-report/
+          retention-days: 14
+
+  # ─── Report Summary ────────────────────────────────────────────────────────
+  report:
+    name: Test Report Summary
+    runs-on: ubuntu-latest
+    needs: [test-chromium]
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Chromium results
+        uses: actions/download-artifact@v4
+        with:
+          name: playwright-results-chromium
+          path: playwright-report/
+
+      - name: Comment PR with test results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let summary = '## 🎭 Playwright E2E Test Results\n\n';
+
+            try {
+              const results = JSON.parse(fs.readFileSync('playwright-report/results.json', 'utf8'));
+              const { stats } = results;
+              const total = stats.expected + stats.unexpected + stats.skipped;
+              const passed = stats.expected;
+              const failed = stats.unexpected;
+              const skipped = stats.skipped;
+
+              const status = failed > 0 ? '❌' : '✅';
+              summary += `${status} **${passed}/${total}** tests passed`;
+              if (failed > 0) summary += ` | **${failed} failed**`;
+              if (skipped > 0) summary += ` | ${skipped} skipped`;
+              summary += '\n\n';
+              summary += `⏱️ Duration: ${Math.round(stats.duration / 1000)}s\n`;
+            } catch (e) {
+              summary += '⚠️ Could not parse test results\n';
+            }
+
+            summary += '\n📊 [View Full HTML Report](../actions/runs/${{ github.run_id }})\n';
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: summary,
+            });

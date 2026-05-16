@@ -40,6 +40,7 @@ class User(Base):
     github_id = Column(String(128), unique=True, index=True, nullable=True)
     github_username = Column(String(128), nullable=True)
     github_access_token = Column(String(512), nullable=True)
+    google_id = Column(String(128), unique=True, index=True, nullable=True)
     avatar_url = Column(String(512), nullable=True)
     is_active = Column(Boolean, default=True)
     is_verified = Column(Boolean, default=False)

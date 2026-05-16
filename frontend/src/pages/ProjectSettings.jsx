@@ -14,6 +14,10 @@ export default function ProjectSettings() {
   const [newVal, setNewVal] = useState('');
   const [isSecret, setIsSecret] = useState(false);
   const [showValues, setShowValues] = useState({});
+  
+  // Project Meta States
+  const [projectData, setProjectData] = useState({ name: '', description: '', install_command: '', build_command: '', output_directory: '' });
+  const [savingMeta, setSavingMeta] = useState(false);
 
   useEffect(() => { fetchProjects(); }, []);
 
@@ -22,7 +26,18 @@ export default function ProjectSettings() {
     projectsAPI.listEnvVars(selectedProject)
       .then(r => setEnvVars(r.data || []))
       .catch(() => setEnvVars([]));
-  }, [selectedProject]);
+
+    const p = projects.find(x => x.id === parseInt(selectedProject));
+    if (p) {
+      setProjectData({
+        name: p.name || '',
+        description: p.description || '',
+        install_command: p.install_command || '',
+        build_command: p.build_command || '',
+        output_directory: p.output_directory || ''
+      });
+    }
+  }, [selectedProject, projects]);
 
   const handleAddVar = async () => {
     if (!newKey.trim()) return;
@@ -44,6 +59,21 @@ export default function ProjectSettings() {
       addToast('Variable removed', 'info');
     } catch {
       addToast('Delete failed', 'error');
+    }
+  };
+
+  const handleUpdateMeta = async (e) => {
+    e.preventDefault();
+    if (!selectedProject) return;
+    setSavingMeta(true);
+    try {
+      await projectsAPI.update(selectedProject, projectData);
+      addToast('Project updated', 'success');
+      fetchProjects();
+    } catch {
+      addToast('Failed to update project', 'error');
+    } finally {
+      setSavingMeta(false);
     }
   };
 
@@ -144,6 +174,42 @@ export default function ProjectSettings() {
                 <Plus size={12} /> Add
               </button>
             </div>
+          </motion.div>
+
+          {/* Project Metadata */}
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card" style={{ marginBottom: 20 }}>
+            <div className="card-header"><span className="card-title">Project Configuration</span></div>
+            <form onSubmit={handleUpdateMeta} style={{ display: 'grid', gap: 16 }}>
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Project Name</label>
+                  <input className="form-input" value={projectData.name} onChange={e => setProjectData({...projectData, name: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Description</label>
+                  <input className="form-input" value={projectData.description} onChange={e => setProjectData({...projectData, description: e.target.value})} />
+                </div>
+              </div>
+              <div className="grid-3">
+                <div className="form-group">
+                  <label className="form-label">Install Command</label>
+                  <input className="form-input" placeholder="npm install" value={projectData.install_command} onChange={e => setProjectData({...projectData, install_command: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Build Command</label>
+                  <input className="form-input" placeholder="npm run build" value={projectData.build_command} onChange={e => setProjectData({...projectData, build_command: e.target.value})} />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Output Directory</label>
+                  <input className="form-input" placeholder="dist" value={projectData.output_directory} onChange={e => setProjectData({...projectData, output_directory: e.target.value})} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <button className="btn btn-primary" type="submit" disabled={savingMeta}>
+                  {savingMeta ? 'Saving...' : <><Save size={14} /> Save Changes</>}
+                </button>
+              </div>
+            </form>
           </motion.div>
 
           {/* Danger Zone */}

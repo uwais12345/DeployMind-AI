@@ -27,11 +27,11 @@ function getStageStatus(stageKey, currentStatus) {
 
 export default function DeploymentSteps({ status }) {
   return (
-    <div className="deploy-steps">
+    <div className="deploy-steps" data-testid="deploy-steps" aria-label="Deployment pipeline stages">
       {STAGES.map((stage) => {
         const s = getStageStatus(stage.key, status);
         return (
-          <div key={stage.key} className={`deploy-step ${s}`}>
+          <div key={stage.key} className={`deploy-step ${s}`} data-testid={`deploy-step-${stage.key}`} data-status={s} aria-label={`${stage.label}: ${s}`}>
             <div className={`step-icon ${s}`}>
               {s === 'completed' ? <Check size={11} /> :
                s === 'active'    ? <Loader size={11} className="spin" /> :

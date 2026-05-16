@@ -11,7 +11,7 @@ export default function ScoreGauge({ score = 0, size = 120 }) {
     'var(--danger)';
 
   return (
-    <div className="score-gauge" style={{ width: size, height: size }}>
+    <div className="score-gauge" data-testid="score-gauge" data-score={score} style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
         <circle
           cx={size / 2} cy={size / 2} r={radius}
@@ -26,7 +26,7 @@ export default function ScoreGauge({ score = 0, size = 120 }) {
           style={{ transition: 'stroke-dashoffset 1s ease, stroke 0.5s ease' }}
         />
       </svg>
-      <span className="score-gauge-value" style={{ color }}>{score}</span>
+      <span className="score-gauge-value" data-testid="score-value" style={{ color }}>{score}</span>
       <span className="score-gauge-label" style={{ top: '62%' }}>/ 100</span>
     </div>
   );

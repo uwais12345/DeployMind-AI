@@ -30,10 +30,11 @@ export default function StatusBadge({ status, pulse = false }) {
   const isLive = ['building', 'deploying', 'scanning', 'analyzing', 'uploading', 'preparing', 'creating_repository', 'pushing_code', 'provisioning', 'verifying'].includes(status);
 
   return (
-    <span className={`badge ${cfg.cls}`}>
+    <span className={`badge ${cfg.cls}`} data-testid={`status-badge-${status}`} data-status={status}>
       {(isLive || pulse) && (
         <span
           className="pulse-dot"
+          data-testid="pulse-dot"
           style={{
             width: 5,
             height: 5,

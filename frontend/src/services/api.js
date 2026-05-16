@@ -102,6 +102,7 @@ export const authAPI = {
 export const projectsAPI = {
   list: () => api.get('/projects/'),
   get: (id) => api.get(`/projects/${id}`),
+  update: (id, data) => api.put(`/projects/${id}`, data),
   delete: (id) => api.delete(`/projects/${id}`),
   upload: (formData, onProgress, signal) =>
     api.post('/projects/upload', formData, {
@@ -162,6 +163,22 @@ export const githubAPI = {
   status: () => api.get('/github/status'),
   push: (projectId) => api.post(`/github/push/${projectId}`),
   oauthUrl: () => api.get('/github/oauth/url'),
+  callback: (code) => api.get('/github/oauth/callback', { params: { code } }),
+};
+
+// ────────────────────────────────────────────
+// GOOGLE
+// ────────────────────────────────────────────
+export const googleAPI = {
+  oauthUrl: () => api.get('/google/oauth/url'),
+  callback: (code) => api.get('/google/oauth/callback', { params: { code } }),
+};
+
+// ────────────────────────────────────────────
+// ANALYTICS
+// ────────────────────────────────────────────
+export const analyticsAPI = {
+  getStats: (days = 7) => api.get('/analytics/', { params: { days } }),
 };
 
 export default api;

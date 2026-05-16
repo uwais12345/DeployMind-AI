@@ -21,7 +21,6 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { to: '/deployments', icon: Rocket, label: 'Deployments' },
-      { to: '/logs', icon: ScrollText, label: 'Logs Explorer' },
       { to: '/analysis', icon: Brain, label: 'AI Analysis' },
     ],
   },
@@ -133,13 +132,13 @@ export default function Sidebar({ collapsed, onToggle }) {
               width: 16,
               height: 16,
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #6366f1, #818cf8)',
+              background: 'var(--accent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 9,
-              fontWeight: 700,
-              color: 'white',
+              fontWeight: 800,
+              color: 'var(--bg-primary)',
               flexShrink: 0,
             }}
           >
