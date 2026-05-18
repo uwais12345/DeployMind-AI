@@ -71,6 +71,11 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
     steps:
       - uses: actions/checkout@v4
 
@@ -86,6 +91,7 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql://deploymind:deploymind_test_123@localhost:5432/deploymind_test
+          REDIS_URL: redis://localhost:6379/0
           SECRET_KEY: playwright_ci_secret_key_for_testing_only
           ALGORITHM: HS256
           ACCESS_TOKEN_EXPIRE_MINUTES: 60
@@ -93,8 +99,7 @@ jobs:
         run: |
           python init_db.py || true
           uvicorn main:app --host 0.0.0.0 --port 8000 &
-          sleep 5
-          curl --fail http://localhost:8000/health || exit 1
+          for i in {1..15}; do curl --fail http://localhost:8000/health && break || sleep 2; done
 
   # ─── E2E Tests: Chromium ─────────────────────────────────────────────────
   test-chromium:
@@ -102,6 +107,24 @@ jobs:
     runs-on: ubuntu-latest
     needs: install
     timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: deploymind_test
+          POSTGRES_USER: deploymind
+          POSTGRES_PASSWORD: deploymind_test_123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -125,6 +148,29 @@ jobs:
       - name: Install Playwright browsers if not cached
         working-directory: frontend
         run: npx playwright install chromium --with-deps
+
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Start FastAPI backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://deploymind:deploymind_test_123@localhost:5432/deploymind_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: playwright_ci_secret_key_for_testing_only
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 60
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python init_db.py || true
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          for i in {1..15}; do curl --fail http://localhost:8000/health && break || sleep 2; done
 
       - name: Run Chromium E2E tests
         working-directory: frontend
@@ -170,6 +216,24 @@ jobs:
     needs: install
     timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: deploymind_test
+          POSTGRES_USER: deploymind
+          POSTGRES_PASSWORD: deploymind_test_123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -191,6 +255,29 @@ jobs:
 
       - run: npx playwright install firefox --with-deps
         working-directory: frontend
+
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Start FastAPI backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://deploymind:deploymind_test_123@localhost:5432/deploymind_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: playwright_ci_secret_key_for_testing_only
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 60
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python init_db.py || true
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          for i in {1..15}; do curl --fail http://localhost:8000/health && break || sleep 2; done
 
       - name: Run Firefox E2E tests
         working-directory: frontend
@@ -215,6 +302,24 @@ jobs:
     needs: install
     timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: deploymind_test
+          POSTGRES_USER: deploymind
+          POSTGRES_PASSWORD: deploymind_test_123
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -236,6 +341,29 @@ jobs:
 
       - run: npx playwright install webkit --with-deps
         working-directory: frontend
+
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Start FastAPI backend
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://deploymind:deploymind_test_123@localhost:5432/deploymind_test
+          REDIS_URL: redis://localhost:6379/0
+          SECRET_KEY: playwright_ci_secret_key_for_testing_only
+          ALGORITHM: HS256
+          ACCESS_TOKEN_EXPIRE_MINUTES: 60
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          python init_db.py || true
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          for i in {1..15}; do curl --fail http://localhost:8000/health && break || sleep 2; done
 
       - name: Run WebKit E2E tests
         working-directory: frontend
