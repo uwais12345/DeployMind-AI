@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, ChevronRight, ChevronLeft, Rocket, Wand2 } from 'lucide-react';
-import { projectsAPI, deploymentsAPI } from '../services/api';
+import { Check, ChevronRight, ChevronLeft, Rocket, Wand2, Loader2, Link2, ExternalLink } from 'lucide-react';
+import { projectsAPI, deploymentsAPI, providersAPI } from '../services/api';
 import useUIStore from '../store/useUIStore';
 
 const STEPS = ['Project Type', 'Provider', 'Environment', 'Deploy Mode', 'Confirm'];
@@ -31,6 +31,23 @@ export default function DeploymentWizard() {
   const [envKey, setEnvKey] = useState('');
   const [envVal, setEnvVal] = useState('');
   const [deploying, setDeploying] = useState(false);
+  const [providerCredentials, setProviderCredentials] = useState([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+
+  React.useEffect(() => {
+    const loadProviders = async () => {
+      setLoadingProviders(true);
+      try {
+        const res = await providersAPI.getCredentials();
+        setProviderCredentials(res.data || []);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingProviders(false);
+      }
+    };
+    loadProviders();
+  }, []);
 
   const update = (key, val) => setConfig(c => ({ ...c, [key]: val }));
 
@@ -147,28 +164,48 @@ export default function DeploymentWizard() {
             <div>
               <div className="card-header"><span className="card-title">Choose Provider</span></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {PROVIDERS.filter(p => !config.projectType || p.best.includes(config.projectType)).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => update('provider', p.id)}
-                    style={{
-                      border: `1px solid ${config.provider === p.id ? 'var(--accent)' : 'var(--border)'}`,
-                      background: config.provider === p.id ? 'var(--accent-dim)' : 'var(--bg-tertiary)',
-                      borderRadius: 'var(--radius)',
-                      padding: '12px 16px',
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      cursor: 'pointer', textAlign: 'left', width: '100%',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <span style={{ fontSize: 20, width: 28, textAlign: 'center' }}>{p.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: config.provider === p.id ? 'var(--accent-hover)' : 'var(--text-primary)' }}>{p.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.desc}</div>
-                    </div>
-                    {config.provider === p.id && <Check size={14} style={{ marginLeft: 'auto', color: 'var(--accent)' }} />}
-                  </button>
-                ))}
+                {loadingProviders ? (
+                  <div style={{ textAlign: 'center', padding: 20 }}><Loader2 size={16} className="spin" style={{ color: 'var(--text-muted)' }} /></div>
+                ) : (
+                  PROVIDERS.filter(p => !config.projectType || p.best.includes(config.projectType)).map(p => {
+                    const isConfigured = providerCredentials.some(c => c.provider === p.id && c.status === 'connected');
+                    const isSelected = config.provider === p.id;
+                    
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => isConfigured && update('provider', p.id)}
+                        disabled={!isConfigured}
+                        style={{
+                          border: `1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
+                          background: isSelected ? 'var(--accent-dim)' : 'var(--bg-tertiary)',
+                          borderRadius: 'var(--radius)',
+                          padding: '12px 16px',
+                          display: 'flex', alignItems: 'center', gap: 14,
+                          cursor: isConfigured ? 'pointer' : 'not-allowed', textAlign: 'left', width: '100%',
+                          transition: 'all 0.15s',
+                          opacity: isConfigured ? 1 : 0.6
+                        }}
+                      >
+                        <span style={{ fontSize: 20, width: 28, textAlign: 'center', filter: isConfigured ? 'none' : 'grayscale(1)' }}>{p.icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: isSelected ? 'var(--accent-hover)' : 'var(--text-primary)' }}>{p.name}</div>
+                            {!isConfigured && <span className="badge badge-muted" style={{ fontSize: 9, padding: '2px 4px' }}>Not Configured</span>}
+                            {isConfigured && <span className="badge badge-success" style={{ fontSize: 9, padding: '2px 4px' }}>Connected</span>}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{p.desc}</div>
+                        </div>
+                        {isSelected && <Check size={14} style={{ color: 'var(--accent)' }} />}
+                        {!isConfigured && (
+                          <div style={{ fontSize: 10, color: 'var(--accent)' }} onClick={(e) => { e.stopPropagation(); navigate('/profile'); }}>
+                            Connect <Link2 size={10} style={{ verticalAlign: 'middle' }}/>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}

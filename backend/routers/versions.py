@@ -38,6 +38,11 @@ def list_versions(
             "changelog": v.changelog,
             "is_current": v.is_current,
             "created_at": v.created_at.isoformat(),
+            # Enrich with deployment context
+            "provider": v.deployment.provider if v.deployment else None,
+            "deploy_mode": v.deployment.deploy_mode if v.deployment else None,
+            "deployment_url": v.deployment.deployment_url if v.deployment else None,
+            "build_duration_seconds": v.deployment.build_duration_seconds if v.deployment else None,
         }
         for v in versions
     ]

@@ -10,8 +10,8 @@ class VercelProvider(BaseProvider):
     Uses Vercel REST API v13 for deployments and project management.
     """
 
-    def __init__(self):
-        self.token = os.getenv("VERCEL_API_TOKEN") or os.getenv("VERCEL_TOKEN")
+    def __init__(self, token: str = None):
+        self.token = token or os.getenv("VERCEL_API_TOKEN") or os.getenv("VERCEL_TOKEN")
         self.team_id = os.getenv("VERCEL_TEAM_ID") # Optional
         self.api_base = "https://api.vercel.com"
 

@@ -76,16 +76,33 @@ def deploy_project_task(self, deployment_id: int, project_id: int, extracted_pat
             return {"status": "aborted", "reason": "Deployment not found or already cancelled/failed"}
 
         # Initialize Provider
-        if provider == "vercel":
-            prov_instance = VercelProvider()
-        elif provider == "render":
-            prov_instance = RenderProvider()
-        else:
-            prov_instance = MockProvider()
-
-        # Check for provider token
-        if provider != "mock" and not prov_instance.token:
-            add_log(db, deployment_id, "failed", f"Provider '{provider}' token not configured. Falling back to MockProvider.", "warning")
+        prov_instance = None
+        if provider != "mock":
+            # Fetch user credentials
+            project = db.query(models.Project).filter(models.Project.id == project_id).first()
+            if project:
+                cred = db.query(models.ProviderCredential).filter(
+                    models.ProviderCredential.user_id == project.owner_id,
+                    models.ProviderCredential.provider == provider,
+                    models.ProviderCredential.is_active == True
+                ).first()
+                
+                if cred:
+                    from utils.encryption import decrypt_value
+                    token = decrypt_value(cred.encrypted_token)
+                    if token:
+                        cred.last_used_at = datetime.datetime.utcnow()
+                        db.commit()
+                        
+                        if provider == "vercel":
+                            prov_instance = VercelProvider(token=token)
+                        elif provider == "render":
+                            prov_instance = RenderProvider(api_key=token)
+                            
+        # Fallbacks
+        if not prov_instance:
+            if provider != "mock":
+                add_log(db, deployment_id, "failed", f"Provider '{provider}' token not configured or invalid. Falling back to MockProvider.", "warning")
             prov_instance = MockProvider()
 
         # Helper to progress state machine

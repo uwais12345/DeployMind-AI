@@ -30,6 +30,21 @@ class DeploymentProvider(str, enum.Enum):
     github_pages = "github_pages"
 
 
+class ProviderCredential(Base):
+    __tablename__ = "provider_credentials"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    provider = Column(String(64), nullable=False)  # render, vercel, railway, netlify
+    encrypted_token = Column(String(512), nullable=False)
+    is_active = Column(Boolean, default=True)
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    user = relationship("User", back_populates="provider_credentials")
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -50,6 +65,7 @@ class User(Base):
 
     projects = relationship("Project", back_populates="owner", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user")
+    provider_credentials = relationship("ProviderCredential", back_populates="user", cascade="all, delete-orphan")
 
 
 class Project(Base):
@@ -219,6 +235,7 @@ class Version(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     project = relationship("Project", back_populates="versions")
+    deployment = relationship("Deployment", foreign_keys=[deployment_id], lazy="joined")
 
 
 class PreviewDeployment(Base):

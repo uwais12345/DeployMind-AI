@@ -179,6 +179,19 @@ export const googleAPI = {
 // ────────────────────────────────────────────
 export const analyticsAPI = {
   getStats: (days = 7) => api.get('/analytics/', { params: { days } }),
+  getInsights: () => api.get('/analytics/insights'),
+};
+
+
+// ────────────────────────────────────────────
+// PROVIDERS
+// ────────────────────────────────────────────
+export const providersAPI = {
+  getCredentials: () => api.get('/providers/credentials'),
+  saveCredential: (data) => api.post('/providers/credentials', data),
+  updateCredential: (provider, data) => api.put(`/providers/credentials/${provider}`, data),
+  deleteCredential: (provider) => api.delete(`/providers/credentials/${provider}`),
+  testConnection: (data) => api.post('/providers/test-connection', data),
 };
 
 export default api;

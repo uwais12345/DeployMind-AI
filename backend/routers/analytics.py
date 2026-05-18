@@ -2,7 +2,12 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func, cast, Date
 from datetime import datetime, timedelta
+from typing import Any, Dict
 import models, auth, database
+from services.ai_service import generate_deployment_insights
+
+_insights_cache: Dict[int, Any] = {}  # {user_id: {"ts": datetime, "data": list}}
+INSIGHTS_TTL_MINUTES = 5
 
 router = APIRouter()
 
@@ -143,5 +148,82 @@ def get_analytics(
             "avg_score": avg_score,
             "total_security_issues": total_sec_issues
         },
-        "failures": failures_list
+        "failures": failures_list,
+        "total_projects": len(projects),
+        "total_deployments": total_deployments,
+        "success_rate": success_rate,
     }
+
+
+@router.get("/insights")
+def get_insights(
+    current_user: models.User = Depends(auth.get_current_user),
+    db: Session = Depends(database.get_db),
+):
+    """
+    Returns AI-generated operational insights.
+    Cached per-user for 5 minutes to avoid redundant Groq calls.
+    """
+    uid = current_user.id
+    cached = _insights_cache.get(uid)
+    if cached and (datetime.utcnow() - cached["ts"]) < timedelta(minutes=INSIGHTS_TTL_MINUTES):
+        return {"insights": cached["data"], "cached": True}
+
+    # Build analytics snapshot
+    projects = db.query(models.Project).filter(models.Project.owner_id == uid).all()
+    project_ids = [p.id for p in projects]
+    deployments = db.query(models.Deployment).filter(
+        models.Deployment.project_id.in_(project_ids)
+    ).all() if project_ids else []
+
+    total = len(deployments)
+    success = sum(1 for d in deployments if d.status == "completed")
+    failed_list = [d for d in deployments if d.status == "failed"]
+    durations = [d.build_duration_seconds for d in deployments if d.status == "completed" and d.build_duration_seconds]
+
+    # Provider stats
+    provider_map: Dict[str, Any] = {}
+    for d in deployments:
+        pn = d.provider or "unknown"
+        if pn not in provider_map:
+            provider_map[pn] = {"name": pn, "count": 0, "success": 0, "durations": []}
+        provider_map[pn]["count"] += 1
+        if d.status == "completed":
+            provider_map[pn]["success"] += 1
+            if d.build_duration_seconds:
+                provider_map[pn]["durations"].append(d.build_duration_seconds)
+
+    provider_stats = []
+    for pn, data in provider_map.items():
+        avg = round(sum(data["durations"]) / len(data["durations"])) if data["durations"] else 0
+        rate = round(data["success"] / data["count"] * 100) if data["count"] else 0
+        provider_stats.append({"name": pn, "count": data["count"], "success_rate": rate, "avg_duration": avg})
+
+    # Failure reasons
+    failure_reasons: Dict[str, int] = {}
+    for d in failed_list:
+        reason = d.error_message or "Unknown"
+        if "timeout" in reason.lower(): reason = "Timeout"
+        elif "build" in reason.lower(): reason = "Build Failure"
+        elif "dependenc" in reason.lower(): reason = "Dependency Error"
+        elif "unauthorized" in reason.lower(): reason = "Auth/Token Error"
+        else: reason = "Other"
+        failure_reasons[reason] = failure_reasons.get(reason, 0) + 1
+
+    analytics_snapshot = {
+        "health": {
+            "total": total,
+            "success_rate": round(success / total * 100) if total else 0,
+            "avg_duration": round(sum(durations) / len(durations)) if durations else 0,
+        },
+        "providers": provider_stats,
+        "frameworks": [{"name": p.framework or "Unknown", "projects": 1, "success_rate": 0} for p in projects],
+        "failures": [{"reason": k, "count": v} for k, v in failure_reasons.items()],
+        "ai_metrics": {
+            "avg_score": round(sum(p.readiness_score for p in projects if p.readiness_score) / len(projects)) if projects else 0
+        },
+    }
+
+    insights = generate_deployment_insights(analytics_snapshot)
+    _insights_cache[uid] = {"ts": datetime.utcnow(), "data": insights}
+    return {"insights": insights, "cached": False}

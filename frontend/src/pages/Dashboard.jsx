@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import useProjectStore from '../store/useProjectStore';
 import { deploymentsAPI, analyticsAPI } from '../services/api';
 import StatusBadge from '../components/ui/StatusBadge';
+import AIInsightsPanel from '../components/ui/AIInsightsPanel';
 
 function StatsCard({ icon: Icon, label, value, color = 'var(--accent)' }) {
   return (
@@ -71,6 +72,9 @@ export default function Dashboard() {
           <Upload size={14} /> New Project
         </button>
       </div>
+
+      {/* AI Insights Panel */}
+      <AIInsightsPanel />
 
       {/* Analytics Stats */}
       <motion.div

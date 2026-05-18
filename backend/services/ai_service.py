@@ -261,3 +261,57 @@ Respond with valid JSON:
     if not result_dict:
         return {"issues_found": [], "fixes_suggested": [], "summary": "Fix analysis failed."}, raw_str or "{}"
     return result_dict, raw_str
+
+
+def generate_deployment_insights(analytics: Dict[str, Any]) -> list:
+    """
+    Generate 3-5 concise AI-powered operational insights from aggregated analytics data.
+    Designed to be called infrequently (cached at API layer).
+    """
+    if not os.getenv("GROQ_API_KEY"):
+        return []
+
+    health = analytics.get("health", {})
+    providers = analytics.get("providers", [])
+    frameworks = analytics.get("frameworks", [])
+    failures = analytics.get("failures", [])
+    ai_metrics = analytics.get("ai_metrics", {})
+
+    # Build a compact analytics summary to minimise token usage
+    summary = {
+        "total_deployments": health.get("total", 0),
+        "success_rate": health.get("success_rate", 0),
+        "avg_build_duration_s": health.get("avg_duration", 0),
+        "top_providers": [{"name": p["name"], "count": p["count"], "success_rate": p["success_rate"], "avg_duration_s": p["avg_duration"]} for p in providers[:4]],
+        "frameworks": [{"name": f["name"], "projects": f["projects"], "success_rate": f["success_rate"]} for f in frameworks[:5]],
+        "top_failure_reasons": failures[:3],
+        "avg_ai_readiness_score": ai_metrics.get("avg_score", 0),
+    }
+
+    prompt = f"""
+You are an expert DevOps observability analyst reviewing deployment platform telemetry.
+
+Analytics snapshot:
+{json.dumps(summary, indent=2)}
+
+Generate exactly 3 to 5 concise, professional, data-driven operational insights for the platform user.
+Each insight must be:
+- Specific (reference actual numbers when possible)
+- Actionable or informative
+- Written in one sentence, professional SaaS tone
+- NOT generic advice
+
+Respond with valid JSON:
+{{
+  "insights": [
+    "insight 1",
+    "insight 2",
+    "insight 3"
+  ]
+}}
+"""
+
+    result_dict, _ = _call_groq(prompt, max_tokens=512)
+    if result_dict and isinstance(result_dict.get("insights"), list):
+        return result_dict["insights"][:5]
+    return []

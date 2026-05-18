@@ -4,6 +4,7 @@ import { User, Mail, Shield, GitBranch, Save } from 'lucide-react';
 import useAuthStore from '../store/useAuthStore';
 import { githubAPI } from '../services/api';
 import useUIStore from '../store/useUIStore';
+import CloudProvidersPanel from '../components/profile/CloudProvidersPanel';
 
 export default function ProfileSettings() {
   const { user } = useAuthStore();
@@ -111,6 +112,9 @@ export default function ProfileSettings() {
           </div>
         )}
       </motion.div>
+
+      {/* Cloud Providers Panel */}
+      <CloudProvidersPanel />
     </div>
   );
 }

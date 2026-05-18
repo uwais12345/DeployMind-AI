@@ -59,7 +59,7 @@ async def startup_event():
 # ────────────────────────────────────────────
 # ROUTERS
 # ────────────────────────────────────────────
-from routers import users, projects, deployments, audit, versions, previews, websocket, github, analytics, google
+from routers import users, projects, deployments, audit, versions, previews, websocket, github, analytics, google, providers
 
 app.include_router(users.router,       prefix="/api/users",       tags=["Authentication"])
 app.include_router(projects.router,    prefix="/api/projects",    tags=["Projects"])
@@ -71,6 +71,7 @@ app.include_router(websocket.router,   prefix="/ws",              tags=["WebSock
 app.include_router(github.router,      prefix="/api/github",      tags=["GitHub"])
 app.include_router(analytics.router,   prefix="/api/analytics",   tags=["Analytics"])
 app.include_router(google.router,      prefix="/api/google",      tags=["Google OAuth"])
+app.include_router(providers.router,   prefix="/api/providers",   tags=["Cloud Providers"])
 
 # ────────────────────────────────────────────
 # HEALTH & ROOT

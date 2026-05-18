@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ExternalLink, XCircle, RefreshCw, Search, Copy, Download, Filter } from 'lucide-react';
+import { ArrowLeft, ExternalLink, XCircle, RefreshCw, Search, Copy, Download, Filter, AlertCircle, Settings } from 'lucide-react';
 import { deploymentsAPI } from '../services/api';
 import DeploymentSteps from '../components/ui/DeploymentSteps';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -155,6 +155,27 @@ export default function DeploymentMonitor() {
     addToast('Logs exported', 'success');
   };
 
+  // Detect provider failure type from logs for elegant UX
+  const detectProviderFailure = () => {
+    const allMessages = (deployment?.logs || []).map(l => l.message.toLowerCase()).join(' ');
+    if (allMessages.includes('token') && (allMessages.includes('invalid') || allMessages.includes('expired') || allMessages.includes('unauthorized') || allMessages.includes('401'))) {
+      return { type: 'auth', provider: deployment.provider };
+    }
+    if (allMessages.includes('rate limit') || allMessages.includes('429') || allMessages.includes('too many requests')) {
+      return { type: 'ratelimit', provider: deployment.provider };
+    }
+    if (allMessages.includes('quota') || allMessages.includes('limit exceeded') || allMessages.includes('upgrade')) {
+      return { type: 'quota', provider: deployment.provider };
+    }
+    return null;
+  };
+
+  const FAILURE_RECOVERY = {
+    auth:      { title: 'Provider Authentication Failed',   body: (p) => `Your ${p} API token appears to be invalid or has expired. Reconnect your provider in Profile Settings to continue deploying.`, cta: 'Update Token', path: '/profile' },
+    ratelimit: { title: 'Provider Rate Limit Reached',     body: (p) => `${p} has temporarily rate-limited this account. Wait a few minutes before retrying the deployment.`, cta: null, path: null },
+    quota:    { title: 'Provider Quota Exceeded',          body: (p) => `Your ${p} account has reached its deployment quota. Upgrade your ${p} plan or wait for your quota to reset.`, cta: 'Manage Providers', path: '/profile' },
+  };
+
   return (
     <div>
       <div className="page-header">
@@ -217,12 +238,51 @@ export default function DeploymentMonitor() {
               </a>
             </div>
           )}
-          {deployment.error_message && (
-            <div className="error-card" style={{ marginTop: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>Deployment Failed</div>
-              <div style={{ fontSize: 10 }}>{deployment.error_message}</div>
-            </div>
-          )}
+          {isFailed && (() => {
+            const failure = detectProviderFailure();
+            const recovery = failure && FAILURE_RECOVERY[failure.type];
+            if (recovery) {
+              return (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+                  style={{
+                    marginTop: 12, padding: '12px 14px',
+                    background: 'rgba(239,68,68,0.06)',
+                    border: '1px solid rgba(239,68,68,0.2)',
+                    borderRadius: 'var(--radius)',
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                    <AlertCircle size={14} style={{ color: 'var(--danger)', flexShrink: 0, marginTop: 1 }} />
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {recovery.title}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: recovery.cta ? 10 : 0 }}>
+                        {recovery.body(failure.provider || 'the provider')}
+                      </div>
+                      {recovery.cta && (
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: 10 }}
+                          onClick={() => navigate(recovery.path)}
+                        >
+                          <Settings size={10} /> {recovery.cta}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            }
+            // Fallback to generic error card
+            return deployment.error_message ? (
+              <div className="error-card" style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 4 }}>Deployment Failed</div>
+                <div style={{ fontSize: 10 }}>{deployment.error_message}</div>
+              </div>
+            ) : null;
+          })()}
 
           {/* AI Diagnostics Panel */}
           {(analyzing || diagnostics) && (

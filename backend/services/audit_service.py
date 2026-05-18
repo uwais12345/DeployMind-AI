@@ -145,3 +145,42 @@ def log_security_block(db, user_id, project_id, reason):
         metadata={"reason": reason}, severity="critical",
     )
 
+
+def log_provider_connected(db, user_id, provider):
+    return log_event(
+        db, event_type="provider.connected",
+        description=f"Provider '{provider}' successfully connected",
+        user_id=user_id, event_category="provider",
+        resource_type="provider",
+        metadata={"provider": provider}, severity="info",
+    )
+
+
+def log_provider_updated(db, user_id, provider):
+    return log_event(
+        db, event_type="provider.updated",
+        description=f"Provider '{provider}' credentials updated",
+        user_id=user_id, event_category="provider",
+        resource_type="provider",
+        metadata={"provider": provider}, severity="info",
+    )
+
+
+def log_provider_disconnected(db, user_id, provider):
+    return log_event(
+        db, event_type="provider.disconnected",
+        description=f"Provider '{provider}' disconnected",
+        user_id=user_id, event_category="provider",
+        resource_type="provider",
+        metadata={"provider": provider}, severity="warning",
+    )
+
+
+def log_provider_validation_failed(db, user_id, provider, reason=""):
+    return log_event(
+        db, event_type="provider.validation_failed",
+        description=f"Provider '{provider}' validation failed: {reason}",
+        user_id=user_id, event_category="provider",
+        resource_type="provider",
+        metadata={"provider": provider, "reason": reason}, severity="warning",
+    )

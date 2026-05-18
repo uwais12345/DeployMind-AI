@@ -10,8 +10,8 @@ class RenderProvider(BaseProvider):
     Uses Render REST API v1 for service management and deployments.
     """
 
-    def __init__(self):
-        self.api_key = os.getenv("RENDER_API_KEY")
+    def __init__(self, api_key: str = None):
+        self.api_key = api_key or os.getenv("RENDER_API_KEY")
         self.api_base = "https://api.render.com/v1"
 
     def _headers(self) -> Dict[str, str]:
