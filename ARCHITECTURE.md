@@ -13,7 +13,7 @@ graph TD
     subgraph "Frontend Layer"
         UI[Vite + React UI]
         State[Zustand State Management]
-        Charts[Recharts Analytics]
+        Charts[Recharts Analytics & AI Insights]
     end
     
     subgraph "Backend Services"
@@ -29,8 +29,8 @@ graph TD
     end
     
     subgraph "External Integrations"
-        Groq[Groq AI Inference]
-        Vercel[Vercel Deploy API]
+        Groq[Groq AI Inference Engine]
+        Cloud[Cloud Providers API]
         GitHub[GitHub API]
     end
     
@@ -40,7 +40,9 @@ graph TD
     Redis <--> Celery
     Celery --> WS
     Celery <--> Groq
-    Celery <--> Vercel
+    API <--> Groq
+    Celery <--> Cloud
+    API <--> Cloud
     Celery <--> GitHub
 ```
 
@@ -60,6 +62,7 @@ The database uses a relational model designed to track projects, deployment hist
 erDiagram
     USERS ||--o{ PROJECTS : "owns"
     USERS ||--o{ AUDIT_LOGS : "triggers"
+    USERS ||--o{ PROVIDER_CREDENTIALS : "configures"
     PROJECTS ||--o{ DEPLOYMENTS : "has"
     PROJECTS ||--o{ PROJECT_VERSIONS : "tracks"
     PROJECTS ||--o{ ENVIRONMENT_VARIABLES : "configures"
@@ -72,6 +75,15 @@ erDiagram
         string hashed_password
         boolean is_active
         datetime created_at
+    }
+
+    PROVIDER_CREDENTIALS {
+        int id PK
+        int user_id FK
+        string provider
+        string encrypted_token
+        boolean is_active
+        datetime last_used_at
     }
 
     PROJECTS {
@@ -94,6 +106,8 @@ erDiagram
         string vercel_id
         string vercel_url
         string target_url
+        string error_message
+        int build_duration_seconds
         json logs
         datetime created_at
     }

@@ -13,18 +13,20 @@ DeployMind AI is an enterprise-grade, AI-powered deployment orchestration platfo
 
 ### ⚡ Enterprise Observability & Operations
 - **Multi-Deployment Analytics**: Real-time visualization of deployment success rates, trends, and platform volume.
-- **Live Deployment Monitor**: Streaming WebSocket logs provide transparent real-time feedback directly from the build pipeline.
-- **Version Control & Rollbacks**: Instant one-click rollback functionality for rapid recovery from failed deployments.
+- **AI Deployment Insights**: Proactive, cached AI analysis of operational telemetry to provide executive-level deployment insights.
+- **Live Deployment Monitor**: Streaming WebSocket logs provide transparent real-time feedback directly from the build pipeline, with smart provider failure detection and recovery UX.
+- **Version Control & Rollbacks**: Instant one-click rollback functionality for rapid recovery from failed deployments, tracking provider and deploy mode.
 
 ### 🛡️ Secure by Design
+- **Encrypted Multi-Tenant Orchestration**: Provider credentials (Vercel, Render, Railway, Netlify) are AES-encrypted at rest and injected dynamically per-tenant at runtime.
 - **Vault-Level Environment Variables**: AES-encrypted storage of sensitive application secrets.
-- **Robust Authentication**: JWT-based secure user sessions with refresh token rotation.
-- **Comprehensive Audit Trail**: Complete immutable logging of system events, deployments, and security incidents.
+- **Robust Authentication**: JWT-based secure user sessions with refresh token rotation (Google OAuth + Email).
+- **Comprehensive Audit Trail**: Complete immutable logging of system events, deployments, provider connections, and security incidents.
 
 ### 🚀 Seamless Infrastructure Integrations
-- **Provider Agnostic Engine**: Abstracted integration interface ready for Vercel, Netlify, and custom container runtimes.
-- **GitHub Sync (Upcoming)**: Direct continuous integration from version control.
+- **Provider-Agnostic Engine**: Abstracted integration interface with unified health monitoring, deployment stats, and error masking for Vercel, Render, Netlify, and Railway.
 - **Preview Environments**: Automated staging generation to preview code changes before production.
+- **GitHub Sync (Upcoming)**: Direct continuous integration from version control.
 
 ---
 

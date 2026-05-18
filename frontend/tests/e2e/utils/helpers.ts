@@ -1,7 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import archiver from 'archiver';
 import { type APIRequestContext } from '@playwright/test';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const FIXTURES_DIR = path.join(__dirname, '../fixtures/zips');
 
